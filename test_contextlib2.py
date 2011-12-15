@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Unit tests for contextlib.py, and other context managers."""
 
 import sys
