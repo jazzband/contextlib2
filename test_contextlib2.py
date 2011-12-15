@@ -163,7 +163,7 @@ class TestContextDecorator(unittest.TestCase):
                 raise NameError('foo')
         self.assertIsNotNone(context.exc)
         self.assertIs(context.exc[0], NameError)
-        self.assertIn('foo', context.exc[1])
+        self.assertIn('foo', str(context.exc[1]))
 
         context = mycontext()
         context.catch = True
@@ -197,7 +197,7 @@ class TestContextDecorator(unittest.TestCase):
             test()
         self.assertIsNotNone(context.exc)
         self.assertIs(context.exc[0], NameError)
-        self.assertIn('foo', context.exc[1])
+        self.assertIn('foo', str(context.exc[1]))
 
 
     def test_decorating_method(self):
@@ -299,10 +299,10 @@ class TestContextDecorator(unittest.TestCase):
         self.assertEqual(state, [1, 'something else', 999])
 
 
-class TestCleanupManager(unittest.TestCase):
+class TestContextStack(unittest.TestCase):
     
     def test_no_resources(self):
-        with CleanupManager():
+        with ContextStack():
             pass
 
     def test_register(self):
@@ -317,16 +317,16 @@ class TestCleanupManager(unittest.TestCase):
         result = []
         def _exit(*args, **kwds):
             result.append((args, kwds))
-        with CleanupManager() as cmgr:
+        with ContextStack() as stack:
             for args, kwds in reversed(expected):
                 if args and kwds:
-                    cmgr.register(_exit, *args, **kwds)
+                    stack.register(_exit, *args, **kwds)
                 elif args:
-                    cmgr.register(_exit, *args)
+                    stack.register(_exit, *args)
                 elif kwds:
-                    cmgr.register(_exit, **kwds)
+                    stack.register(_exit, **kwds)
                 else:
-                    cmgr.register(_exit)
+                    stack.register(_exit)
 
     def test_register_exit(self):
         exc_raised = ZeroDivisionError
@@ -338,11 +338,11 @@ class TestCleanupManager(unittest.TestCase):
             self.assertIsNone(exc_type)
             self.assertIsNone(exc)
             self.assertIsNone(exc_tb)
-        with CleanupManager() as cmgr:
-            cmgr.register_exit(_expect_ok)
-            cmgr.register_exit(_suppress_exc)
-            cmgr.register_exit(_expect_exc)
-            cmgr.register_exit(_expect_exc)
+        with ContextStack() as stack:
+            stack.register_exit(_expect_ok)
+            stack.register_exit(_suppress_exc)
+            stack.register_exit(_expect_exc)
+            stack.register_exit(_expect_exc)
             1/0
 
     def test_enter_context(self):
@@ -353,24 +353,25 @@ class TestCleanupManager(unittest.TestCase):
                 result.append(3)
 
         result = []
-        with CleanupManager() as cmgr:
-            @cmgr.register  # Registered first => cleaned up last
+        with ContextStack() as stack:
+            @stack.register  # Registered first => cleaned up last
             def _exit():
                 result.append(4)
-            cmgr.enter_context(TestCM())
+            stack.enter_context(TestCM())
             result.append(2)
         self.assertEqual(result, [1, 2, 3, 4])
 
     def test_close(self):
         result = []
-        with CleanupManager() as cmgr:
-            @cmgr.register  # Registered first => cleaned up last
+        with ContextStack() as stack:
+            @stack.register  # Registered first => cleaned up last
             def _exit():
                 result.append(1)
-            cmgr.close()
+            stack.close()
             result.append(2)
         self.assertEqual(result, [1, 2])
 
 
 if __name__ == "__main__":
-    test_main()
+    import unittest
+    unittest.main(__name__)

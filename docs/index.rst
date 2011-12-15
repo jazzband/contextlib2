@@ -188,43 +188,66 @@ API Reference
       This may involve keeping a copy of the original arguments used to
       first initialise the context manager.
 
-.. class:: CleanupManager()
+
+.. class:: ContextStack()
 
    A context manager that is designed to make it easy to programmatically
-   combine other context managers and cleanup functions, that are either
-   optional or driven by input data.
+   combine other context managers and cleanup functions, especially those
+   that are optional or otherwise driven by input data.
 
    For example, a set of files may easily be handled in a single with
    statement as follows::
 
-      with CleanupManager() as cmgr:
-          files = [cmgr.enter_context(fname) for fname in filenames]
+      with ContextStack() as stack:
+          files = [stack.enter_context(fname) for fname in filenames]
           # All opened files will automatically be closed at the end of
           # the with statement, even if attempts to open files later
           # in the list throw an exception
 
-   .. method:: register_exit(exit):
+   Each instance maintains a stack of registered callbacks (usually context
+   manager exit methods) that are called in reverse order when the instance
+   is closed (either explicitly or implicitly at the end of a ``with``
+   statement).
 
-      Accepts callbacks with the same signature as context manager
-      :meth:`__exit__` methods
-
-      By returing true values, these callbacks can suppress exceptions the
-      same way context manager :meth:`__exit__` methods can.
-
-   .. method:: register(_cb, *args, **kwds):
-
-      Accepts arbitrary callbacks and arguments. These callbacks cannot
-      suppress exceptions.
+   Since registered callbacks are invoked in the reverse order of
+   registration, this ends up behaving as if multiple nested ``with``
+   statements had been used with the registered set of resources. This even
+   extends to exception handling - if an inner callback suppresses or replaces
+   an exception, then outer callbacks will be passed arguments based on that
+   that updated state.
 
    .. method:: enter_context(cm):
 
-      Accepts and automatically enters other context managers. These
-      context managers may suppress exceptions just as they normally would.
+      Enters a new context manager and adds its :meth:`__exit__` method to
+      the callback stack. The return value is the result of the context
+      manager's own :meth:`__enter__` method.
+
+      These context managers may suppress exceptions just as they normally
+      would if used directly as part of a ``with`` statement.
+
+   .. method:: register_exit(callback):
+
+      Directly accepts a callback with the same signature as a
+      context manager's :meth:`__exit__` method and adds it to the callback
+      stack.
+
+      By returning true values, these callbacks can suppress exceptions the
+      same way context manager :meth:`__exit__` methods can.
+
+   .. method:: push_callback(callback, *args, **kwds):
+
+      Accepts an arbitrary callback function and arguments and adds it to
+      the callback stack.
+
+      Unlike the other methods, callbacks added this way cannot suppress
+      exceptions (as they are never passed the exception details).
 
    .. method:: close()
 
-      Immediately cleans up all registered resources, resetting the manager
-      to its initial state in the process.
+      Immediately unwinds the context stack, invoking callbacks in the
+      reverse order of registration. For any context managers and exit
+      callbacks registered, the arguments passed in will indicate that no
+      exception occurred.
 
 
 Obtaining the Module
@@ -241,7 +264,7 @@ PyPI page`_.
 There are no operating system or distribution specific versions of this
 module - it is a pure Python module that should work on all platforms.
 
-Supported Python versions are 2.7 and 3.2+.
+Supported Python versions are currently 2.7 and 3.2+.
 
 .. _Python Package Index: http://pypi.python.org
 .. _pip: http://www.pip-installer.org
@@ -251,7 +274,7 @@ Supported Python versions are 2.7 and 3.2+.
 Development and Support
 -----------------------
 
-WalkDir is developed and maintained on BitBucket_. Problems and suggested
+contextlib2 is developed and maintained on BitBucket_. Problems and suggested
 improvements can be posted to the `issue tracker`_.
 
 .. _BitBucket: https://bitbucket.org/ncoghlan/contextlib2/overview

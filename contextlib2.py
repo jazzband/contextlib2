@@ -4,7 +4,7 @@ import sys
 from collections import deque
 from functools import wraps
 
-__all__ = ["contextmanager", "closing", "ContextDecorator", "CleanupManager"]
+__all__ = ["contextmanager", "closing", "ContextDecorator", "ContextStack"]
 
 
 class ContextDecorator(object):
@@ -141,13 +141,13 @@ class closing(object):
         self.thing.close()
 
 
-class CleanupManager(object):
+class ContextStack(object):
     """Context for programmatic management of resource cleanup
     
     For example:
     
-        with CleanupManager() as cmgr:
-            files = [cmgr.enter_context(fname) for fname in filenames]
+        with ContextStack() as stack:
+            files = [stack.enter_context(fname) for fname in filenames]
             # All opened files will automatically be closed at the end of
             # the with statement, even if attempts to open files later
             # in the list throw an exception
@@ -156,22 +156,29 @@ class CleanupManager(object):
     def __init__(self):
         self._callbacks = deque()
 
-    def register_exit(self, exit):
-        """Accepts callbacks with the same signature as context manager __exit__ methods
+    def register_exit(self, callback):
+        """Registers a callback with the standard __exit__ method signature
 
-           Can also suppress exceptions the same way __exit__ methods can.
+        Can suppress exceptions the same way __exit__ methods can.
         """
-        self._callbacks.append(exit)
-        return exit # Allow use as a decorator
+        self._callbacks.append(callback)
+        return callback # Allow use as a decorator
 
-    def register(self, _cb, *args, **kwds):
-        """Accepts arbitrary callbacks and arguments. Cannot suppress exceptions."""
+    def register(self, callback, *args, **kwds):
+        """Registers an arbitrary callback and arguments.
+        
+        Cannot suppress exceptions.
+        """
         def _wrapper(exc_type, exc, tb):
-            _cb(*args, **kwds)
+            callback(*args, **kwds)
         return self.register_exit(_wrapper)
 
     def enter_context(self, cm):
-        """Accepts and automatically enters other context managers"""
+        """Enters the supplied context manager
+        
+        If successful, also registers its __exit__ method as a callback and
+        returns the result of the __enter__ method.
+        """
         # We look up the special methods on the type to match the with statement
         _cm_type = type(cm)
         _exit = _cm_type.__exit__
@@ -182,7 +189,7 @@ class CleanupManager(object):
         return result
 
     def close(self):
-        """Immediately cleanup all registered resources"""
+        """Immediately unwind the context stack"""
         self.__exit__(None, None, None)
 
     def __enter__(self):
@@ -197,7 +204,7 @@ class CleanupManager(object):
         # inner one throws an exception
         def _invoke_next_callback(exc_details):
             # Callbacks are removed from the list in FIFO order
-            # but the recursion means they're *invoked* in LIFO order
+            # but the recursion means they're invoked in LIFO order
             cb = self._callbacks.popleft()
             if not self._callbacks:
                 # Innermost callback is invoked directly
