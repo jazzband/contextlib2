@@ -234,7 +234,7 @@ API Reference
       By returning true values, these callbacks can suppress exceptions the
       same way context manager :meth:`__exit__` methods can.
 
-   .. method:: push_callback(callback, *args, **kwds)
+   .. method:: register(callback, *args, **kwds)
 
       Accepts an arbitrary callback function and arguments and adds it to
       the callback stack.
