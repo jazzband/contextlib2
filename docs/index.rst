@@ -199,7 +199,7 @@ API Reference
    statement as follows::
 
       with ContextStack() as stack:
-          files = [stack.enter_context(fname) for fname in filenames]
+          files = [stack.enter_context(open(fname)) for fname in filenames]
           # All opened files will automatically be closed at the end of
           # the with statement, even if attempts to open files later
           # in the list throw an exception
