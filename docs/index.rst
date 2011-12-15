@@ -216,7 +216,7 @@ API Reference
    an exception, then outer callbacks will be passed arguments based on that
    updated state.
 
-   .. method:: enter_context(cm):
+   .. method:: enter_context(cm)
 
       Enters a new context manager and adds its :meth:`__exit__` method to
       the callback stack. The return value is the result of the context
@@ -225,7 +225,7 @@ API Reference
       These context managers may suppress exceptions just as they normally
       would if used directly as part of a ``with`` statement.
 
-   .. method:: register_exit(callback):
+   .. method:: register_exit(callback)
 
       Directly accepts a callback with the same signature as a
       context manager's :meth:`__exit__` method and adds it to the callback
@@ -234,7 +234,7 @@ API Reference
       By returning true values, these callbacks can suppress exceptions the
       same way context manager :meth:`__exit__` methods can.
 
-   .. method:: push_callback(callback, *args, **kwds):
+   .. method:: push_callback(callback, *args, **kwds)
 
       Accepts an arbitrary callback function and arguments and adds it to
       the callback stack.
