@@ -27,7 +27,7 @@ for new features not yet part of the standard library. Those new features
 are currently:
 
 * :meth:`ContextDecorator.refresh_cm`
-* :class:`CleanupManager`
+* :class:`ContextStack`
 
 
 API Reference
