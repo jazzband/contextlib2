@@ -214,7 +214,7 @@ API Reference
    statements had been used with the registered set of resources. This even
    extends to exception handling - if an inner callback suppresses or replaces
    an exception, then outer callbacks will be passed arguments based on that
-   that updated state.
+   updated state.
 
    .. method:: enter_context(cm):
 
