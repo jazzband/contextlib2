@@ -3,7 +3,7 @@ from distutils.core import setup
 
 setup(
     name='contextlib2',
-    version='0.2',
+    version=open('VERSION.txt').read().strip(),
     py_modules=['contextlib2'],
     license='PSF License',
     description='Backports and enhancements for the contextlib module',
