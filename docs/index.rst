@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-contextlib2 --- Updated utilities for with-statement contexts
-=============================================================
+contextlib2 --- Updated utilities for context management
+========================================================
 
 .. module:: contextlib2
    :synopsis: Backports and future enhancements for the contextlib module
@@ -26,12 +26,12 @@ This module is primarily a backport of the Python 3.2 version of
 for new features not yet part of the standard library. Those new features
 are currently:
 
-* :meth:`ContextDecorator.refresh_cm`
 * :class:`ContextStack`
+* :meth:`ContextDecorator.refresh_cm`
 
 
 API Reference
--------------
+=============
 
 .. function:: @contextmanager
 
@@ -188,6 +188,9 @@ API Reference
       This may involve keeping a copy of the original arguments used to
       first initialise the context manager.
 
+   .. versionchanged:: 0.1
+      Made the standard library's private :meth:`refresh_cm` API public
+
 
 .. class:: ContextStack()
 
@@ -249,6 +252,9 @@ API Reference
       callbacks registered, the arguments passed in will indicate that no
       exception occurred.
 
+   .. versionadded:: 0.2
+      New API for :mod:`contextlib2`, not available in standard library
+
 
 Obtaining the Module
 ====================
@@ -281,9 +287,11 @@ improvements can be posted to the `issue tracker`_.
 .. _issue tracker: https://bitbucket.org/ncoghlan/contextlib2/issues?status=new&status=open
 
 
+.. include:: ../NEWS.rst
+
+
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`search`
-
