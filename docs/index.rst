@@ -237,6 +237,11 @@ API Reference
       By returning true values, these callbacks can suppress exceptions the
       same way context manager :meth:`__exit__` methods can.
 
+      This method also accepts any object with an ``__exit__`` method, and
+      will register that method as the callback. This is mainly useful to
+      cover part of an :meth:`__enter__` implementation with a context
+      manager's own :meth:`__exit__` method.
+
    .. method:: register(callback, *args, **kwds)
 
       Accepts an arbitrary callback function and arguments and adds it to

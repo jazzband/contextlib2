@@ -168,8 +168,15 @@ class ContextStack(object):
         """Registers a callback with the standard __exit__ method signature
 
         Can suppress exceptions the same way __exit__ methods can.
+
+        Also accepts any object with an __exit__ method (registering the
+        method instead of the object itself)
         """
-        self._callbacks.append(callback)
+        try:
+            exit = callback.__exit__
+        except AttributeError:
+            exit = callback
+        self._callbacks.append(exit)
         return callback # Allow use as a decorator
 
     def register(self, callback, *args, **kwds):

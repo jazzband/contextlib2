@@ -344,9 +344,18 @@ class TestContextStack(unittest.TestCase):
             self.assertIsNone(exc_type)
             self.assertIsNone(exc)
             self.assertIsNone(exc_tb)
+        class ExitCM(object):
+            def __init__(self, check_exc):
+                self.check_exc = check_exc
+            def __enter__(self):
+                self.fail("Should not be called!")
+            def __exit__(self, *exc_details):
+                self.check_exc(*exc_details)
         with ContextStack() as stack:
             stack.register_exit(_expect_ok)
+            stack.register_exit(ExitCM(_expect_ok))
             stack.register_exit(_suppress_exc)
+            stack.register_exit(ExitCM(_expect_exc))
             stack.register_exit(_expect_exc)
             stack.register_exit(_expect_exc)
             1/0
