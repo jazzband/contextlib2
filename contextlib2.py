@@ -187,7 +187,7 @@ class ContextStack(object):
         @wraps(callback)
         def _wrapper(exc_type, exc, tb):
             callback(*args, **kwds)
-        return self.register_exit(_wrapper)
+        self.register_exit(_wrapper)
 
     def enter_context(self, cm):
         """Enters the supplied context manager

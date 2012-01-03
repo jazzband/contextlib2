@@ -322,13 +322,13 @@ class TestContextStack(unittest.TestCase):
         with ContextStack() as stack:
             for args, kwds in reversed(expected):
                 if args and kwds:
-                    stack.register(_exit, *args, **kwds)
+                    self.assertIsNone(stack.register(_exit, *args, **kwds))
                 elif args:
-                    stack.register(_exit, *args)
+                    self.assertIsNone(stack.register(_exit, *args))
                 elif kwds:
-                    stack.register(_exit, **kwds)
+                    self.assertIsNone(stack.register(_exit, **kwds))
                 else:
-                    stack.register(_exit)
+                    self.assertIsNone(stack.register(_exit))
             for wrapper in stack._callbacks:
                 self.assertEqual(wrapper.__name__, _exit.__name__)
                 self.assertEqual(wrapper.__doc__, _exit.__doc__)

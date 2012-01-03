@@ -5,6 +5,8 @@ Release History
 0.3 (2012-01-XX)
 ~~~~~~~~~~~~~~~~
 
+* Issue #5: ContextStack.register no longer pointlessly returns the wrapped
+  function
 * Issue #2: Add examples and recipes section to docs
 * Issue #3: ContextStack.register_exit() now accepts objects with __exit__
   attributes in addition to accepting exit callbacks directly
