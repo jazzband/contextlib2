@@ -33,7 +33,7 @@ are currently:
 API Reference
 =============
 
-.. function:: @contextmanager
+.. function:: contextmanager
 
    This function is a decorator that can be used to define a factory
    function for ``with`` statement context managers, without needing to
@@ -278,6 +278,171 @@ API Reference
 
    .. versionadded:: 0.2
       New API for :mod:`contextlib2`, not available in standard library
+
+
+Examples and Recipes
+====================
+
+This section describes some examples and recipes for making effective use of
+the tools provided by :mod:`contextlib2`. Some of them may also work with
+:mod:`contextlib` in sufficiently recent versions of Python. When this is the
+case, it is noted at the end of the example.
+
+
+Using a context manager as a function decorator
+-----------------------------------------------
+
+:class:`ContextDecorator` makes it possible to use a context manager in
+both an ordinary ``with`` statement and also as a function decorator. The
+:meth:`ContextDecorator.refresh_cm` method even makes it possible to use
+otherwise single use context managers (such as those created by
+:func:`contextmanager`) that way.
+
+For example, it is sometimes useful to wrap functions or groups of statements
+with a logger that can track the time of entry and time of exit.  Rather than
+writing both a function decorator and a context manager for the task,
+:func:`contextmanager` provides both capabilities in a single
+definition::
+
+    from contextlib2 import contextmanager
+    import logging
+
+    logging.basicConfig(level=logging.INFO)
+
+    @contextmanager
+    def track_entry_and_exit(name):
+        logging.info('Entering: {}'.format(name))
+        yield
+        logging.info('Exiting: {}'.format(name))
+
+This can be used as both a context manager::
+
+    with track_entry_and_exit('widget loader'):
+        print('Some time consuming activity goes here')
+        load_widget()
+
+And also as a function decorator::
+
+    @track_entry_and_exit('widget loader')
+    def activity():
+        print('Some time consuming activity goes here')
+        load_widget()
+
+Note that there is one additional limitation when using context managers
+as function decorators: there's no way to access the return value of
+:meth:`__enter__`. If that value is needed, then it is still necessary to use
+an explicit ``with`` statement.
+
+This example should also work with :mod:`contextlib` in Python 3.2.1 or later.
+
+
+Cleaning up in an ``__enter__`` implementation
+----------------------------------------------
+
+As noted in the documentation of :meth:`ContextStack.register_exit`, this
+method can be useful in cleaning up an already allocated resource if later
+steps in the :meth:`__enter__` implementation fail.
+
+Here's an example of doing this for a context manager that accepts resource
+acquisition and release functions, along with an optional validation function,
+and maps them to the context management protocol::
+
+   from contextlib2 import ContextStack
+
+   class ResourceManager(object):
+
+       def __init__(self, acquire_resource, release_resource, check_resource_ok=None):
+           self.acquire_resource = acquire_resource
+           self.release_resource = release_resource
+           self.check_resource_ok = check_resource_ok
+
+       def __enter__(self):
+           resource = self.acquire_resource()
+           if self.check_resource_ok is not None:
+               with ContextStack() as stack:
+                   stack.register_exit(self)
+                   if not self.check_resource_ok(resource):
+                       msg = "Failed validation for {!r}"
+                       raise RuntimeError(msg.format(resource))
+                   # The validation check passed and didn't raise an exception
+                   # Accordingly, we want to keep the resource, and pass it
+                   # back to our caller
+                   stack.preserve()
+           return resource
+
+       def __exit__(self, *exc_details):
+           # We don't need to duplicate any of our resource release logic
+           self.release_resource()
+
+
+Replacing any use of ``try-finally`` and flag variables
+-------------------------------------------------------
+
+A pattern you will sometimes see is a ``try-finally`` statement with a flag
+variable to indicate whether or not the body of the ``finally`` clause should
+be executed. In its simplest form (that can't already be handled just by
+using an ``except`` clause instead), it looks something like this::
+
+   cleanup_needed = True
+   try:
+       result = perform_operation()
+       if result:
+           cleanup_needed = False
+   finally:
+       if cleanup_needed:
+           cleanup_resources()
+
+As with any ``try`` statement based code, this can cause problems for
+development and review, because the setup code and the cleanup code can end
+up being separated by arbitrarily long sections of code.
+
+:class:`ContextStack` makes it possible to instead register a callback for
+execution at the end of a ``with`` statement, and then later decide to skip
+executing that callback::
+
+   from contextlib2 import ContextStack
+
+   with ContextStack() as stack:
+       stack.register(cleanup_resources)
+       result = perform_operation()
+       if result:
+           stack.preserve()
+
+This allows the intended cleanup up behaviour to be made explicit up front,
+rather than requiring a separate flag variable.
+
+If you find yourself using this pattern a lot, it can be simplified even
+further by means of a small helper class::
+
+   from contextlib2 import ContextStack
+
+   class Callback(ContextStack):
+       def __init__(self, callback, *args, **kwds):
+           super(Callback, self).__init__()
+           self.register(callback, *args, **kwds)
+
+       def cancel(self):
+           self.preserve()
+
+   with Callback(cleanup_resources) as cb:
+       result = perform_operation()
+       if result:
+           cb.cancel()
+
+If the resource cleanup isn't already neatly bundled into a standalone
+function, then it is still possible to use the decorator form of
+:meth:`ContextStack.register_exit` to declare the resource cleanup in
+advance::
+
+   from contextlib2 import ContextStack
+
+   with ContextStack() as stack:
+       @stack.register_exit
+       def cleanup_resources(*exc_details):
+           ...
+       result = perform_operation()
+       if result:
+           stack.preserve()
 
 
 Obtaining the Module
