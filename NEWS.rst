@@ -2,7 +2,7 @@ Release History
 ---------------
 
 
-0.3 (2011-12-XX)
+0.3 (2012-01-XX)
 ~~~~~~~~~~~~~~~~
 
 * Moved version number to a VERSION.txt file (read by both docs and setup.py)
