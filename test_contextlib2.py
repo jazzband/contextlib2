@@ -317,6 +317,7 @@ class TestContextStack(unittest.TestCase):
         ]
         result = []
         def _exit(*args, **kwds):
+            """Test metadata propagation"""
             result.append((args, kwds))
         with ContextStack() as stack:
             for args, kwds in reversed(expected):
@@ -328,6 +329,10 @@ class TestContextStack(unittest.TestCase):
                     stack.register(_exit, **kwds)
                 else:
                     stack.register(_exit)
+            for wrapper in stack._callbacks:
+                self.assertEqual(wrapper.__name__, _exit.__name__)
+                self.assertEqual(wrapper.__doc__, _exit.__doc__)
+        self.assertEqual(result, expected)
 
     def test_register_exit(self):
         exc_raised = ZeroDivisionError

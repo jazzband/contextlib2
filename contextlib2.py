@@ -170,6 +170,7 @@ class ContextStack(object):
         
         Cannot suppress exceptions.
         """
+        @wraps(callback)
         def _wrapper(exc_type, exc, tb):
             callback(*args, **kwds)
         return self.register_exit(_wrapper)
