@@ -370,14 +370,26 @@ class TestContextStack(unittest.TestCase):
     def test_close(self):
         result = []
         with ContextStack() as stack:
-            @stack.register  # Registered first => cleaned up last
+            @stack.register
             def _exit():
                 result.append(1)
             stack.close()
             result.append(2)
         self.assertEqual(result, [1, 2])
 
+    def test_preserve(self):
+        result = []
+        with ContextStack() as stack:
+            @stack.register
+            def _exit():
+                result.append(3)
+            new_stack = stack.preserve()
+            result.append(1)
+        result.append(2)
+        new_stack.close()
+        self.assertEqual(result, [1, 2, 3])
 
+        
 if __name__ == "__main__":
     import unittest
     unittest.main(__name__)

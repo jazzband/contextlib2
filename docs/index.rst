@@ -207,14 +207,14 @@ API Reference
           # the with statement, even if attempts to open files later
           # in the list throw an exception
 
-   Each instance maintains a stack of registered callbacks (usually context
-   manager exit methods) that are called in reverse order when the instance
-   is closed (either explicitly or implicitly at the end of a ``with``
-   statement).
+   Each instance maintains a stack of registered callbacks that are called in
+   reverse order when the instance is closed (either explicitly or implicitly
+   at the end of a ``with`` statement). Note that callbacks are *not* invoked
+   implicitly when the context stack instance is garbage collected.
 
    Since registered callbacks are invoked in the reverse order of
    registration, this ends up behaving as if multiple nested ``with``
-   statements had been used with the registered set of resources. This even
+   statements had been used with the registered set of callbacks. This even
    extends to exception handling - if an inner callback suppresses or replaces
    an exception, then outer callbacks will be passed arguments based on that
    updated state.
@@ -245,9 +245,28 @@ API Reference
       Unlike the other methods, callbacks added this way cannot suppress
       exceptions (as they are never passed the exception details).
 
+   .. method:: preserve()
+
+      Transfers the callback stack to a fresh instance and returns it. No
+      callbacks are invoked by this operation - instead, they will now be
+      invoked when the new stack is closed (either explicitly or implicitly).
+
+      For example, a group of files can be opened as an "all or nothing"
+      operation as follows::
+
+         with ContextStack() as stack:
+             files = [stack.enter_context(open(fname)) for fname in filenames]
+             close_files = stack.preserve().close
+             # If opening any file fails, all previously opened files will be
+             # closed automatically. If all files are opened successfully,
+             # they will remain open even after the with statement ends.
+             # close_files() can then be invoked explicitly to close them all
+
+      .. versionadded:: 0.3
+
    .. method:: close()
 
-      Immediately unwinds the context stack, invoking callbacks in the
+      Immediately unwinds the callback stack, invoking callbacks in the
       reverse order of registration. For any context managers and exit
       callbacks registered, the arguments passed in will indicate that no
       exception occurred.

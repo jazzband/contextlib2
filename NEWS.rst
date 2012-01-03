@@ -5,6 +5,8 @@ Release History
 0.3 (2012-01-XX)
 ~~~~~~~~~~~~~~~~
 
+* Issue #1: Add ContextStack.preserve() to move all registered callbacks to
+  a new ContextStack object
 * Wrapped callbacks now use functools.wraps to aid in introspection
 * Moved version number to a VERSION.txt file (read by both docs and setup.py)
 * Added NEWS.rst (and incorporated into documentation)

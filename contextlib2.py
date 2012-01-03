@@ -143,7 +143,7 @@ class closing(object):
 
 # Inspired by discussions on http://bugs.python.org/issue13585
 class ContextStack(object):
-    """Context manager for programmatic management of resource cleanup
+    """Context manager for dynamic management of a stack of exit callbacks
     
     For example:
     
@@ -156,6 +156,13 @@ class ContextStack(object):
     """
     def __init__(self):
         self._callbacks = deque()
+        
+    def preserve(self):
+        """Preserve the context stack by transferring it to a new instance"""
+        new_stack = type(self)()
+        new_stack._callbacks = self._callbacks
+        self._callbacks = deque()
+        return new_stack
 
     def register_exit(self, callback):
         """Registers a callback with the standard __exit__ method signature
