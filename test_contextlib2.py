@@ -330,8 +330,9 @@ class TestContextStack(unittest.TestCase):
                 else:
                     self.assertIsNone(stack.register(_exit))
             for wrapper in stack._callbacks:
-                self.assertEqual(wrapper.__name__, _exit.__name__)
-                self.assertEqual(wrapper.__doc__, _exit.__doc__)
+                self.assertIs(wrapper.__wrapped__, _exit)
+                self.assertNotEqual(wrapper.__name__, _exit.__name__)
+                self.assertIsNone(wrapper.__doc__, _exit.__doc__)
         self.assertEqual(result, expected)
 
     def test_register_exit(self):
@@ -353,11 +354,19 @@ class TestContextStack(unittest.TestCase):
                 self.check_exc(*exc_details)
         with ContextStack() as stack:
             stack.register_exit(_expect_ok)
-            stack.register_exit(ExitCM(_expect_ok))
+            self.assertIs(stack._callbacks[-1], _expect_ok)
+            cm = ExitCM(_expect_ok)
+            stack.register_exit(cm)
+            self.assertIs(stack._callbacks[-1].__self__, cm)
             stack.register_exit(_suppress_exc)
-            stack.register_exit(ExitCM(_expect_exc))
+            self.assertIs(stack._callbacks[-1], _suppress_exc)
+            cm = ExitCM(_expect_exc)
+            stack.register_exit(cm)
+            self.assertIs(stack._callbacks[-1].__self__, cm)
             stack.register_exit(_expect_exc)
+            self.assertIs(stack._callbacks[-1], _expect_exc)
             stack.register_exit(_expect_exc)
+            self.assertIs(stack._callbacks[-1], _expect_exc)
             1/0
 
     def test_enter_context(self):
@@ -368,11 +377,13 @@ class TestContextStack(unittest.TestCase):
                 result.append(3)
 
         result = []
+        cm = TestCM()
         with ContextStack() as stack:
             @stack.register  # Registered first => cleaned up last
             def _exit():
                 result.append(4)
-            stack.enter_context(TestCM())
+            stack.enter_context(cm)
+            self.assertIs(stack._callbacks[-1].__self__, cm)
             result.append(2)
         self.assertEqual(result, [1, 2, 3, 4])
 
@@ -398,6 +409,14 @@ class TestContextStack(unittest.TestCase):
         new_stack.close()
         self.assertEqual(result, [1, 2, 3])
 
+    def test_instance_bypass(self):
+        class Example(object): pass
+        cm = Example()
+        cm.__exit__ = object()
+        stack = ContextStack()
+        self.assertRaises(AttributeError, stack.enter_context, cm)
+        stack.register_exit(cm)
+        self.assertIs(stack._callbacks[-1], cm)
         
 if __name__ == "__main__":
     import unittest

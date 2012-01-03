@@ -12,7 +12,8 @@ Release History
   attributes in addition to accepting exit callbacks directly
 * Issue #1: Add ContextStack.preserve() to move all registered callbacks to
   a new ContextStack object
-* Wrapped callbacks now use functools.wraps to aid in introspection
+* Wrapped callbacks now expose __wrapped__ (for direct callbacks) or __self__
+(for context manager methods) attributes to aid in introspection
 * Moved version number to a VERSION.txt file (read by both docs and setup.py)
 * Added NEWS.rst (and incorporated into documentation)
 

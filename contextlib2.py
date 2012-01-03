@@ -164,6 +164,13 @@ class ContextStack(object):
         self._callbacks = deque()
         return new_stack
 
+    def _register_cm_exit(self, cm, cm_exit):
+        """Helper to correctly register callbacks to __exit__ methods"""
+        def _exit_wrapper(*exc_details):
+            return cm_exit(cm, *exc_details)
+        _exit_wrapper.__self__ = cm
+        self.register_exit(_exit_wrapper)
+        
     def register_exit(self, callback):
         """Registers a callback with the standard __exit__ method signature
 
@@ -172,11 +179,13 @@ class ContextStack(object):
         Also accepts any object with an __exit__ method (registering the
         method instead of the object itself)
         """
+        _cb_type = type(callback)
         try:
-            exit = callback.__exit__
+            exit = _cb_type.__exit__
         except AttributeError:
-            exit = callback
-        self._callbacks.append(exit)
+            self._callbacks.append(callback)
+        else:
+            self._register_cm_exit(callback, exit)
         return callback # Allow use as a decorator
 
     def register(self, callback, *args, **kwds):
@@ -184,10 +193,12 @@ class ContextStack(object):
         
         Cannot suppress exceptions.
         """
-        @wraps(callback)
-        def _wrapper(exc_type, exc, tb):
+        def _exit_wrapper(exc_type, exc, tb):
             callback(*args, **kwds)
-        self.register_exit(_wrapper)
+        # We changed the signature, so using @wraps is not appropriate, but
+        # setting __wrapped__ may still help with introspection
+        _exit_wrapper.__wrapped__ = callback
+        self.register_exit(_exit_wrapper)
 
     def enter_context(self, cm):
         """Enters the supplied context manager
@@ -199,9 +210,7 @@ class ContextStack(object):
         _cm_type = type(cm)
         _exit = _cm_type.__exit__
         result = _cm_type.__enter__(cm)
-        def _exit_wrapper(*exc_details):
-            return _exit(cm, *exc_details)
-        self.register_exit(_exit_wrapper)
+        self._register_cm_exit(cm, _exit)
         return result
 
     def close(self):
