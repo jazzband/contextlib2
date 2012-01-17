@@ -1,6 +1,10 @@
 Release History
 ---------------
 
+0.3.1 (2012-01-17)
+~~~~~~~~~~~~~~~~~~
+
+* Issue #7: Add MANIFEST.in so PyPI package contains all relevant files
 
 0.3 (2012-01-04)
 ~~~~~~~~~~~~~~~~
