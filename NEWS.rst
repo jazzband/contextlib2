@@ -4,6 +4,8 @@ Release History
 0.4.0 (2012-05-??)
 ~~~~~~~~~~~~~~~~~~
 
+* Issue #8: Replace ContextStack with ExitStack (old ContextStack API
+  retained for backwards compatibility)
 * Fall back to unittest2 if unittest is missing required functionality
 
 

@@ -26,7 +26,7 @@ This module is primarily a backport of the Python 3.2 version of
 for new features not yet part of the standard library. Those new features
 are currently:
 
-* :class:`ContextStack`
+* :class:`ExitStack`
 * :meth:`ContextDecorator.refresh_cm`
 
 
@@ -192,7 +192,7 @@ API Reference
       Made the standard library's private :meth:`refresh_cm` API public
 
 
-.. class:: ContextStack()
+.. class:: ExitStack()
 
    A context manager that is designed to make it easy to programmatically
    combine other context managers and cleanup functions, especially those
@@ -201,7 +201,7 @@ API Reference
    For example, a set of files may easily be handled in a single with
    statement as follows::
 
-      with ContextStack() as stack:
+      with ExitStack() as stack:
           files = [stack.enter_context(open(fname)) for fname in filenames]
           # All opened files will automatically be closed at the end of
           # the with statement, even if attempts to open files later
@@ -228,7 +228,7 @@ API Reference
       These context managers may suppress exceptions just as they normally
       would if used directly as part of a ``with`` statement.
 
-   .. method:: register_exit(callback)
+   .. method:: push(exit)
 
       Directly accepts a callback with the same signature as a
       context manager's :meth:`__exit__` method and adds it to the callback
@@ -242,7 +242,7 @@ API Reference
       cover part of an :meth:`__enter__` implementation with a context
       manager's own :meth:`__exit__` method.
 
-   .. method:: register(callback, *args, **kwds)
+   .. method:: callback(callback, *args, **kwds)
 
       Accepts an arbitrary callback function and arguments and adds it to
       the callback stack.
@@ -250,7 +250,7 @@ API Reference
       Unlike the other methods, callbacks added this way cannot suppress
       exceptions (as they are never passed the exception details).
 
-   .. method:: preserve()
+   .. method:: pop_all()
 
       Transfers the callback stack to a fresh instance and returns it. No
       callbacks are invoked by this operation - instead, they will now be
@@ -259,15 +259,13 @@ API Reference
       For example, a group of files can be opened as an "all or nothing"
       operation as follows::
 
-         with ContextStack() as stack:
+         with ExitStack() as stack:
              files = [stack.enter_context(open(fname)) for fname in filenames]
-             close_files = stack.preserve().close
+             close_files = stack.pop_all().close
              # If opening any file fails, all previously opened files will be
              # closed automatically. If all files are opened successfully,
              # they will remain open even after the with statement ends.
              # close_files() can then be invoked explicitly to close them all
-
-      .. versionadded:: 0.3
 
    .. method:: close()
 
@@ -275,6 +273,18 @@ API Reference
       reverse order of registration. For any context managers and exit
       callbacks registered, the arguments passed in will indicate that no
       exception occurred.
+
+   .. versionadded:: 0.4
+      New API for :mod:`contextlib2`, not available in standard library
+
+
+.. class:: ContextStack()
+
+   An earlier incarnation of the :class:`ExitStack` interface. This class
+   is deprecated and should no longer be used.
+
+   .. versionchanged:: 0.4
+      Deprecated in favour of :class:`ExitStack`
 
    .. versionadded:: 0.2
       New API for :mod:`contextlib2`, not available in standard library
@@ -339,7 +349,7 @@ This example should also work with :mod:`contextlib` in Python 3.2.1 or later.
 Cleaning up in an ``__enter__`` implementation
 ----------------------------------------------
 
-As noted in the documentation of :meth:`ContextStack.register_exit`, this
+As noted in the documentation of :meth:`ExitStack.push`, this
 method can be useful in cleaning up an already allocated resource if later
 steps in the :meth:`__enter__` implementation fail.
 
@@ -347,7 +357,7 @@ Here's an example of doing this for a context manager that accepts resource
 acquisition and release functions, along with an optional validation function,
 and maps them to the context management protocol::
 
-   from contextlib2 import ContextStack
+   from contextlib2 import ExitStack
 
    class ResourceManager(object):
 
@@ -359,15 +369,15 @@ and maps them to the context management protocol::
        def __enter__(self):
            resource = self.acquire_resource()
            if self.check_resource_ok is not None:
-               with ContextStack() as stack:
-                   stack.register_exit(self)
+               with ExitStack() as stack:
+                   stack.push(self)
                    if not self.check_resource_ok(resource):
                        msg = "Failed validation for {!r}"
                        raise RuntimeError(msg.format(resource))
                    # The validation check passed and didn't raise an exception
                    # Accordingly, we want to keep the resource, and pass it
                    # back to our caller
-                   stack.preserve()
+                   stack.pop_all()
            return resource
 
        def __exit__(self, *exc_details):
@@ -396,17 +406,17 @@ As with any ``try`` statement based code, this can cause problems for
 development and review, because the setup code and the cleanup code can end
 up being separated by arbitrarily long sections of code.
 
-:class:`ContextStack` makes it possible to instead register a callback for
+:class:`ExitStack` makes it possible to instead register a callback for
 execution at the end of a ``with`` statement, and then later decide to skip
 executing that callback::
 
-   from contextlib2 import ContextStack
+   from contextlib2 import ExitStack
 
-   with ContextStack() as stack:
-       stack.register(cleanup_resources)
+   with ExitStack() as stack:
+       stack.callback(cleanup_resources)
        result = perform_operation()
        if result:
-           stack.preserve()
+           stack.pop_all()
 
 This allows the intended cleanup up behaviour to be made explicit up front,
 rather than requiring a separate flag variable.
@@ -414,15 +424,15 @@ rather than requiring a separate flag variable.
 If you find yourself using this pattern a lot, it can be simplified even
 further by means of a small helper class::
 
-   from contextlib2 import ContextStack
+   from contextlib2 import ExitStack
 
-   class Callback(ContextStack):
+   class Callback(ExitStack):
        def __init__(self, callback, *args, **kwds):
            super(Callback, self).__init__()
-           self.register(callback, *args, **kwds)
+           self.callback(callback, *args, **kwds)
 
        def cancel(self):
-           self.preserve()
+           self.pop_all()
 
    with Callback(cleanup_resources) as cb:
        result = perform_operation()
@@ -431,18 +441,22 @@ further by means of a small helper class::
 
 If the resource cleanup isn't already neatly bundled into a standalone
 function, then it is still possible to use the decorator form of
-:meth:`ContextStack.register_exit` to declare the resource cleanup in
+:meth:`ExitStack.callback` to declare the resource cleanup in
 advance::
 
-   from contextlib2 import ContextStack
+   from contextlib2 import ExitStack
 
-   with ContextStack() as stack:
-       @stack.register_exit
-       def cleanup_resources(*exc_details):
+   with ExitStack() as stack:
+       @stack.callback
+       def cleanup_resources():
            ...
        result = perform_operation()
        if result:
-           stack.preserve()
+           stack.pop_all()
+
+Due to the way the decorator protocol works, a callback function
+declared this way cannot take any parameters. Instead, any resources to
+be released must be accessed as closure variables
 
 
 Obtaining the Module
