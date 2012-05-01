@@ -1,8 +1,11 @@
 #!/usr/bin/env python
-"""Unit tests for contextlib.py, and other context managers."""
+"""Unit tests for contextlib2"""
 
 import sys
+
 import unittest
+if not hasattr(unittest, "skipIf"):
+    import unittest2 as unittest
 
 from contextlib2 import *  # Tests __all__
 

@@ -4,7 +4,7 @@ Release History
 0.4.0 (2012-05-??)
 ~~~~~~~~~~~~~~~~~~
 
-* TBD
+* Fall back to unittest2 if unittest is missing required functionality
 
 
 0.3.1 (2012-01-17)
