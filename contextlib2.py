@@ -4,17 +4,31 @@ import sys
 from collections import deque
 from functools import wraps
 
-__all__ = ["contextmanager", "closing", "ContextDecorator",
-           "ContextStack", "ExitStack"]
+# Standard library exports
+__all__ = ["contextmanager", "closing", "ContextDecorator", "ExitStack",
+           "redirect_stdout", "suppress"]
 
+# contextlib2 only exports (current and legacy experimental interfaces)
+__all__ += ["ContextStack"]
 
 class ContextDecorator(object):
     "A base class or mixin that enables context managers to work as decorators."
 
+    def _recreate_cm(self):
+        """Return a recreated instance of self.
+        Allows an otherwise one-shot context manager like
+        _GeneratorContextManager to support use as
+        a decorator via implicit recreation.
+
+        This is a private interface just for _GeneratorContextManager.
+        See issue #11647 for details.
+        """
+        return self
+
     def refresh_cm(self):
         """Returns the context manager used to actually wrap the call to the
         decorated function.
-        
+
         The default implementation just returns *self*.
 
         Overriding this method allows otherwise one-shot context managers
@@ -37,6 +51,16 @@ class _GeneratorContextManager(ContextDecorator):
     def __init__(self, func, *args, **kwds):
         self.gen = func(*args, **kwds)
         self.func, self.args, self.kwds = func, args, kwds
+        # Issue 19330: ensure context manager instances have good docstrings
+        doc = getattr(func, "__doc__", None)
+        if doc is None:
+            doc = type(self).__doc__
+        self.__doc__ = doc
+        # Unfortunately, this still doesn't provide good help output when
+        # inspecting the created context manager instances, since pydoc
+        # currently bypasses the instance docstring and shows the docstring
+        # for the class instead.
+        # See http://bugs.python.org/issue19404 for more details.
 
     def refresh_cm(self):
         # _GCM instances are one-shot context managers, so the
@@ -141,23 +165,116 @@ class closing(object):
     def __exit__(self, *exc_info):
         self.thing.close()
 
+class redirect_stdout:
+    """Context manager for temporarily redirecting stdout to another file
+
+        # How to send help() to stderr
+        with redirect_stdout(sys.stderr):
+            help(dir)
+
+        # How to write help() to a file
+        with open('help.txt', 'w') as f:
+            with redirect_stdout(f):
+                help(pow)
+    """
+
+    def __init__(self, new_target):
+        self._new_target = new_target
+        self._old_target = self._sentinel = object()
+
+    def __enter__(self):
+        if self._old_target is not self._sentinel:
+            raise RuntimeError("Cannot reenter {!r}".format(self))
+        self._old_target = sys.stdout
+        sys.stdout = self._new_target
+        return self._new_target
+
+    def __exit__(self, exctype, excinst, exctb):
+        restore_stdout = self._old_target
+        self._old_target = self._sentinel
+        sys.stdout = restore_stdout
+
+
+
+class suppress:
+    """Context manager to suppress specified exceptions
+
+    After the exception is suppressed, execution proceeds with the next
+    statement following the with statement.
+
+         with suppress(FileNotFoundError):
+             os.remove(somefile)
+         # Execution still resumes here if the file was already removed
+    """
+
+    def __init__(self, *exceptions):
+        self._exceptions = exceptions
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exctype, excinst, exctb):
+        # Unlike isinstance and issubclass, CPython exception handling
+        # currently only looks at the concrete type hierarchy (ignoring
+        # the instance and subclass checking hooks). While Guido considers
+        # that a bug rather than a feature, it's a fairly hard one to fix
+        # due to various internal implementation details. suppress provides
+        # the simpler issubclass based semantics, rather than trying to
+        # exactly reproduce the limitations of the CPython interpreter.
+        #
+        # See http://bugs.python.org/issue12029 for more details
+        return exctype is not None and issubclass(exctype, self._exceptions)
+
+
+# Context manipulation is Python 3 only
+if str is not bytes:
+    def _make_context_fixer(frame_exc):
+        def _fix_exception_context(new_exc, old_exc):
+            while 1:
+                exc_context = new_exc.__context__
+                if exc_context in (None, frame_exc):
+                    break
+                new_exc = exc_context
+            new_exc.__context__ = old_exc
+        return _fix_exception_context
+
+    def _reraise_with_existing_context(exc_details):
+        try:
+            # bare "raise exc_details[1]" replaces our carefully
+            # set-up context
+            fixed_ctx = exc_details[1].__context__
+            raise exc_details[1]
+        except BaseException:
+            exc_details[1].__context__ = fixed_ctx
+            raise
+else:
+    # No exception context in Python 2
+    def _make_context_fixer(frame_exc):
+        return lambda new_exc, old_exc: None
+
+    # Use 3 argument raise in Python 2,
+    # but use exec to avoid SyntaxError in Python 3
+    def _reraise_with_existing_context(exc_details):
+        exc_type, exc_value, exc_tb = exc_details
+        exec ("raise exc_type, exc_value, exc_tb")
+
 
 # Inspired by discussions on http://bugs.python.org/issue13585
 class ExitStack(object):
     """Context manager for dynamic management of a stack of exit callbacks
-    
+
     For example:
-    
+
         with ExitStack() as stack:
             files = [stack.enter_context(open(fname)) for fname in filenames]
             # All opened files will automatically be closed at the end of
             # the with statement, even if attempts to open files later
-            # in the list throw an exception
-    
+            # in the list raise an exception
+
     """
     def __init__(self):
         self._exit_callbacks = deque()
-        
+
     def pop_all(self):
         """Preserve the context stack by transferring it to a new instance"""
         new_stack = type(self)()
@@ -171,14 +288,14 @@ class ExitStack(object):
             return cm_exit(cm, *exc_details)
         _exit_wrapper.__self__ = cm
         self.push(_exit_wrapper)
-        
+
     def push(self, exit):
         """Registers a callback with the standard __exit__ method signature
 
         Can suppress exceptions the same way __exit__ methods can.
 
-        Also accepts any object with an __exit__ method (registering the
-        method instead of the object itself)
+        Also accepts any object with an __exit__ method (registering a call
+        to the method instead of the object itself)
         """
         # We use an unbound method rather than a bound method to follow
         # the standard lookup behaviour for special methods
@@ -194,7 +311,7 @@ class ExitStack(object):
 
     def callback(self, callback, *args, **kwds):
         """Registers an arbitrary callback and arguments.
-        
+
         Cannot suppress exceptions.
         """
         def _exit_wrapper(exc_type, exc, tb):
@@ -207,7 +324,7 @@ class ExitStack(object):
 
     def enter_context(self, cm):
         """Enters the supplied context manager
-        
+
         If successful, also pushes its __exit__ method as a callback and
         returns the result of the __enter__ method.
         """
@@ -226,35 +343,33 @@ class ExitStack(object):
         return self
 
     def __exit__(self, *exc_details):
-        if not self._exit_callbacks:
-            return
-        # This looks complicated, but it is really just
-        # setting up a chain of try-expect statements to ensure
-        # that outer callbacks still get invoked even if an
-        # inner one throws an exception
-        def _invoke_next_callback(exc_details):
-            # Callbacks are removed from the list in FIFO order
-            # but the recursion means they're invoked in LIFO order
-            cb = self._exit_callbacks.popleft()
-            if not self._exit_callbacks:
-                # Innermost callback is invoked directly
-                return cb(*exc_details)
-            # More callbacks left, so descend another level in the stack
+        received_exc = exc_details[0] is not None
+
+        # We manipulate the exception state so it behaves as though
+        # we were actually nesting multiple with statements
+        frame_exc = sys.exc_info()[1]
+        _fix_exception_context = _make_context_fixer(frame_exc)
+
+        # Callbacks are invoked in LIFO order to match the behaviour of
+        # nested context managers
+        suppressed_exc = False
+        pending_raise = False
+        while self._exit_callbacks:
+            cb = self._exit_callbacks.pop()
             try:
-                suppress_exc = _invoke_next_callback(exc_details)
-            except:
-                suppress_exc = cb(*sys.exc_info())
-                # Check if this cb suppressed the inner exception
-                if not suppress_exc:
-                    raise
-            else:
-                # Check if inner cb suppressed the original exception
-                if suppress_exc:
+                if cb(*exc_details):
+                    suppressed_exc = True
+                    pending_raise = False
                     exc_details = (None, None, None)
-                suppress_exc = cb(*exc_details) or suppress_exc
-            return suppress_exc
-        # Kick off the recursive chain
-        return _invoke_next_callback(exc_details)
+            except:
+                new_exc_details = sys.exc_info()
+                # simulate the stack of exceptions by setting the context
+                _fix_exception_context(new_exc_details[1], exc_details[1])
+                pending_raise = True
+                exc_details = new_exc_details
+        if pending_raise:
+            _reraise_with_existing_context(exc_details)
+        return received_exc and suppressed_exc
 
 # Preserve backwards compatibility
 class ContextStack(ExitStack):

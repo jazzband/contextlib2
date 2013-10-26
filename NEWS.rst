@@ -1,8 +1,19 @@
 Release History
 ---------------
 
-0.4.0 (2012-05-??)
-~~~~~~~~~~~~~~~~~~
+0.5.0 (2013-??-??)
+^^^^^^^^^^^^^^^^^^
+
+* Updated to include all features from the upcoming Python 3.4 version of
+  contextlib (also includes some ``ExitStack`` enhancements made following
+  the integration into the standard library for Python 3.3)
+
+* The legacy ``ContextStack`` and ``ContextDecorator.refresh_cm`` APIs are
+  no longer documented
+
+
+0.4.0 (2012-05-05)
+^^^^^^^^^^^^^^^^^^
 
 * Issue #8: Replace ContextStack with ExitStack (old ContextStack API
   retained for backwards compatibility)
@@ -10,13 +21,13 @@ Release History
 
 
 0.3.1 (2012-01-17)
-~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^
 
 * Issue #7: Add MANIFEST.in so PyPI package contains all relevant files
 
 
 0.3 (2012-01-04)
-~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^
 
 * Issue #5: ContextStack.register no longer pointlessly returns the wrapped
   function
@@ -32,14 +43,14 @@ Release History
 
 
 0.2 (2011-12-15)
-~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^
 
 * Renamed CleanupManager to ContextStack (hopefully before anyone started
   using the module for anything, since I didn't alias the old name at all)
 
 
 0.1 (2011-12-13)
-~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^
 
 * Initial release as a backport module
 * Added CleanupManager (based on a `Python feature request`_)
