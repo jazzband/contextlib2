@@ -184,7 +184,7 @@ class redirect_stdout:
 
     def __enter__(self):
         if self._old_target is not self._sentinel:
-            raise RuntimeError("Cannot reenter {!r}".format(self))
+            raise RuntimeError("Cannot reenter {0!r}".format(self))
         self._old_target = sys.stdout
         sys.stdout = self._new_target
         return self._new_target
