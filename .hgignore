@@ -7,6 +7,7 @@ syntax: glob
 *.pyd
 *.cover
 *~
+.tox/
 __pycache__
 .coverage
 coverage/
