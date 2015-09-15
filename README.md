@@ -1,6 +1,9 @@
-contextlib2 is a backport of the standard library's contextlib module to earlier Python versions.
+contextlib2 is a backport of the [standard library's contextlib
+module](https://docs.python.org/3.5/library/contextlib.html) to
+earlier Python versions.
 
-It also serves as a real world proving ground for possible future enhancements to the standard library version.
+It also serves as a real world proving ground for possible future
+enhancements to the standard library version.
 
 Development
 -----------
