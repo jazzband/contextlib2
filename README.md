@@ -7,7 +7,12 @@ Development
 
 contextlib2 currently has no dependencies.
 
-Local testing is currently just a matter of running "python test_contextlib2.py"
+Local testing is currently just a matter of running `python test_contextlib2.py`.
+
+You can test against multiple versions of Python with [tox](http://tox.testrun.org/)):
+
+    pip install tox
+    tox
 
 Continuous integration
 ----------------------
