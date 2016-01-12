@@ -17,6 +17,20 @@ You can test against multiple versions of Python with [tox](http://tox.testrun.o
     pip install tox
     tox
 
+Versions currently tested in tox are:
+
+* CPython 2.7 (also tested in Codeship)
+* CPython 3.4 (also tested in Codeship)
+* CPython 3.5
+* PyPy
+* PyPy3
+
+To install all the relevant runtimes on Fedora 23:
+
+    sudo dnf install python python3 pypy pypy3
+    sudo dnf copr enable -y mstuchli/Python3.5
+    sudo dnf install python35-python3
+
 Continuous integration
 ----------------------
 
