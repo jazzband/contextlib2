@@ -23,3 +23,4 @@ Continuous integration
 CI is set up in Codeship to run against PRs and commits.
 
 [![Codeship Status for ncoghlan/contextlib2](https://codeship.com/projects/884e9500-3d1a-0133-3eb0-1abe7f570a4c/status?branch=default)](https://codeship.com/projects/102388)
+[![codecov.io](https://codecov.io/bitbucket/ncoghlan/contextlib2/coverage.svg?branch=default)](https://codecov.io/bitbucket/ncoghlan/contextlib2?branch=default)
