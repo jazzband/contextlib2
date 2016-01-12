@@ -9,7 +9,7 @@ Release History
   the integration into the standard library for Python 3.3)
 
 * The legacy ``ContextStack`` and ``ContextDecorator.refresh_cm`` APIs are
-  no longer documented
+  no longer documented and emit ``DeprecationWarning`` when used
 
 * Python 2.6, 3.2 and 3.3 have been dropped from compatibility testing
 
