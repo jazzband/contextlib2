@@ -1,6 +1,19 @@
 Release History
 ---------------
 
+0.5.0 (2016-01-12)
+~~~~~~~~~~~~~~~~~~
+
+* Updated to include all features from the Python 3.4 and 3.5 releases of
+  contextlib (also includes some ``ExitStack`` enhancements made following
+  the integration into the standard library for Python 3.3)
+
+* The legacy ``ContextStack`` and ``ContextDecorator.refresh_cm`` APIs are
+  no longer documented and emit ``DeprecationWarning`` when used
+
+* Python 2.6, 3.2 and 3.3 have been dropped from compatibility testing
+
+
 0.4.0 (2012-05-05)
 ~~~~~~~~~~~~~~~~~~
 
