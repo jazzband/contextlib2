@@ -11,6 +11,8 @@ Release History
 * The legacy ``ContextStack`` and ``ContextDecorator.refresh_cm`` APIs are
   no longer documented
 
+* Python 2.6, 3.2 and 3.3 have been dropped from compatibility testing
+
 
 0.4.0 (2012-05-05)
 ^^^^^^^^^^^^^^^^^^
