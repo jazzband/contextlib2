@@ -21,14 +21,14 @@ involving the ``with`` statement.
 Additions Relative to the Standard Library
 ------------------------------------------
 
-This module is primarily a backport of the Python 3.4 version of
+This module is primarily a backport of the Python 3.5 version of
 :mod:`contextlib` to earlier releases. However, it is also a proving ground
 for new features not yet part of the standard library.
 
 There are currently no such features in the module.
 
 Refer to the :mod:`contextlib` documentation for details of which
-versions of Python 3 include the various APIs provided in this module.
+versions of Python 3 introduce the various APIs provided in this module.
 
 
 API Reference
@@ -183,10 +183,21 @@ Functions and classes provided:
    applications. It also has no effect on the output of subprocesses.
    However, it is still a useful approach for many utility scripts.
 
-   This context manager is :ref:`reusable but not reentrant <reusable-cms>`.
+   This context manager is :ref:`reentrant <reentrant-cms>`.
 
    .. versionadded:: 0.5
       Part of the standard library in Python 3.4 and later
+
+
+.. function:: redirect_stderr(new_target)
+
+   Similar to :func:`redirect_stdout`, but redirecting :data:`sys.stderr` to
+   another file or file-like object.
+
+   This context manager is :ref:`reentrant <reentrant-cms>`.
+
+   .. versionadded:: 0.5
+      Part of the standard library in Python 3.5 and later
 
 
 .. class:: ContextDecorator()

@@ -1,10 +1,10 @@
 Release History
 ---------------
 
-0.5.0 (2013-??-??)
+0.5.0 (2016-01-12)
 ^^^^^^^^^^^^^^^^^^
 
-* Updated to include all features from the upcoming Python 3.4 version of
+* Updated to include all features from the Python 3.4 and 3.5 releases of
   contextlib (also includes some ``ExitStack`` enhancements made following
   the integration into the standard library for Python 3.3)
 
