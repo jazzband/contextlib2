@@ -1,29 +1,18 @@
 """contextlib2 - backports and enhancements to the contextlib module"""
 
 import sys
+import warnings
 from collections import deque
 from functools import wraps
 
-# Standard library exports
 __all__ = ["contextmanager", "closing", "ContextDecorator", "ExitStack",
-           "redirect_stdout", "suppress"]
+           "redirect_stdout", "redirect_stderr", "suppress"]
 
-# contextlib2 only exports (current and legacy experimental interfaces)
+# Backwards compatibility
 __all__ += ["ContextStack"]
 
 class ContextDecorator(object):
     "A base class or mixin that enables context managers to work as decorators."
-
-    def _recreate_cm(self):
-        """Return a recreated instance of self.
-        Allows an otherwise one-shot context manager like
-        _GeneratorContextManager to support use as
-        a decorator via implicit recreation.
-
-        This is a private interface just for _GeneratorContextManager.
-        See issue #11647 for details.
-        """
-        return self
 
     def refresh_cm(self):
         """Returns the context manager used to actually wrap the call to the
@@ -34,13 +23,30 @@ class ContextDecorator(object):
         Overriding this method allows otherwise one-shot context managers
         like _GeneratorContextManager to support use as decorators via
         implicit recreation.
+
+        DEPRECATED: refresh_cm was never added to the standard library's
+                    ContextDecorator API
+        """
+        warnings.warn("refresh_cm was never added to the standard library",
+                      DeprecationWarning)
+        return self._recreate_cm()
+
+    def _recreate_cm(self):
+        """Return a recreated instance of self.
+
+        Allows an otherwise one-shot context manager like
+        _GeneratorContextManager to support use as
+        a decorator via implicit recreation.
+
+        This is a private interface just for _GeneratorContextManager.
+        See issue #11647 for details.
         """
         return self
 
     def __call__(self, func):
         @wraps(func)
         def inner(*args, **kwds):
-            with self.refresh_cm():
+            with self._recreate_cm():
                 return func(*args, **kwds)
         return inner
 
@@ -48,7 +54,7 @@ class ContextDecorator(object):
 class _GeneratorContextManager(ContextDecorator):
     """Helper for @contextmanager decorator."""
 
-    def __init__(self, func, *args, **kwds):
+    def __init__(self, func, args, kwds):
         self.gen = func(*args, **kwds)
         self.func, self.args, self.kwds = func, args, kwds
         # Issue 19330: ensure context manager instances have good docstrings
@@ -62,11 +68,11 @@ class _GeneratorContextManager(ContextDecorator):
         # for the class instead.
         # See http://bugs.python.org/issue19404 for more details.
 
-    def refresh_cm(self):
+    def _recreate_cm(self):
         # _GCM instances are one-shot context managers, so the
         # CM must be recreated each time a decorated function is
         # called
-        return self.__class__(self.func, *self.args, **self.kwds)
+        return self.__class__(self.func, self.args, self.kwds)
 
     def __enter__(self):
         try:
@@ -91,10 +97,17 @@ class _GeneratorContextManager(ContextDecorator):
                 self.gen.throw(type, value, traceback)
                 raise RuntimeError("generator didn't stop after throw()")
             except StopIteration as exc:
-                # Suppress the exception *unless* it's the same exception that
+                # Suppress StopIteration *unless* it's the same exception that
                 # was passed to throw().  This prevents a StopIteration
-                # raised inside the "with" statement from being suppressed
+                # raised inside the "with" statement from being suppressed.
                 return exc is not value
+            except RuntimeError as exc:
+                # Likewise, avoid suppressing if a StopIteration exception
+                # was passed to throw() and later wrapped into a RuntimeError
+                # (see PEP 479).
+                if _HAVE_EXCEPTION_CHAINING and exc.__cause__ is value:
+                    return False
+                raise
             except:
                 # only re-raise if it's *not* the exception that was
                 # passed to throw(), because __exit__() must not raise
@@ -137,7 +150,7 @@ def contextmanager(func):
     """
     @wraps(func)
     def helper(*args, **kwds):
-        return _GeneratorContextManager(func, *args, **kwds)
+        return _GeneratorContextManager(func, args, kwds)
     return helper
 
 
@@ -165,8 +178,27 @@ class closing(object):
     def __exit__(self, *exc_info):
         self.thing.close()
 
-class redirect_stdout:
-    """Context manager for temporarily redirecting stdout to another file
+
+class _RedirectStream:
+
+    _stream = None
+
+    def __init__(self, new_target):
+        self._new_target = new_target
+        # We use a list of old targets to make this CM re-entrant
+        self._old_targets = []
+
+    def __enter__(self):
+        self._old_targets.append(getattr(sys, self._stream))
+        setattr(sys, self._stream, self._new_target)
+        return self._new_target
+
+    def __exit__(self, exctype, excinst, exctb):
+        setattr(sys, self._stream, self._old_targets.pop())
+
+
+class redirect_stdout(_RedirectStream):
+    """Context manager for temporarily redirecting stdout to another file.
 
         # How to send help() to stderr
         with redirect_stdout(sys.stderr):
@@ -178,22 +210,13 @@ class redirect_stdout:
                 help(pow)
     """
 
-    def __init__(self, new_target):
-        self._new_target = new_target
-        self._old_target = self._sentinel = object()
+    _stream = "stdout"
 
-    def __enter__(self):
-        if self._old_target is not self._sentinel:
-            raise RuntimeError("Cannot reenter {0!r}".format(self))
-        self._old_target = sys.stdout
-        sys.stdout = self._new_target
-        return self._new_target
 
-    def __exit__(self, exctype, excinst, exctb):
-        restore_stdout = self._old_target
-        self._old_target = self._sentinel
-        sys.stdout = restore_stdout
+class redirect_stderr(_RedirectStream):
+    """Context manager for temporarily redirecting stderr to another file."""
 
+    _stream = "stderr"
 
 
 class suppress:
@@ -227,14 +250,21 @@ class suppress:
 
 
 # Context manipulation is Python 3 only
-if str is not bytes:
+_HAVE_EXCEPTION_CHAINING = sys.version_info.major >= 3
+if _HAVE_EXCEPTION_CHAINING:
     def _make_context_fixer(frame_exc):
         def _fix_exception_context(new_exc, old_exc):
+            # Context may not be correct, so find the end of the chain
             while 1:
                 exc_context = new_exc.__context__
-                if exc_context in (None, frame_exc):
+                if exc_context is old_exc:
+                    # Context is already set correctly (see issue 20317)
+                    return
+                if exc_context is None or exc_context is frame_exc:
                     break
                 new_exc = exc_context
+            # Change the end of the chain to point to the exception
+            # we expect it to reference
             new_exc.__context__ = old_exc
         return _fix_exception_context
 
@@ -257,7 +287,6 @@ else:
     def _reraise_with_existing_context(exc_details):
         exc_type, exc_value, exc_tb = exc_details
         exec ("raise exc_type, exc_value, exc_tb")
-
 
 # Inspired by discussions on http://bugs.python.org/issue13585
 class ExitStack(object):
@@ -374,6 +403,11 @@ class ExitStack(object):
 # Preserve backwards compatibility
 class ContextStack(ExitStack):
     """Backwards compatibility alias for ExitStack"""
+
+    def __init__(self):
+        warnings.warn("ContextStack has been renamed to ExitStack",
+                      DeprecationWarning)
+        super(ContextStack, self).__init__()
 
     def register_exit(self, callback):
         return self.push(callback)
