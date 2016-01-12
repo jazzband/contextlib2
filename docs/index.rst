@@ -21,22 +21,25 @@ involving the ``with`` statement.
 Additions Relative to the Standard Library
 ------------------------------------------
 
-This module is primarily a backport of the Python 3.2 version of
+This module is primarily a backport of the Python 3.5 version of
 :mod:`contextlib` to earlier releases. However, it is also a proving ground
-for new features not yet part of the standard library. Those new features
-are currently:
+for new features not yet part of the standard library.
 
-* :class:`ExitStack`
-* :meth:`ContextDecorator.refresh_cm`
+There are currently no such features in the module.
+
+Refer to the :mod:`contextlib` documentation for details of which
+versions of Python 3 introduce the various APIs provided in this module.
 
 
 API Reference
 =============
 
-.. function:: contextmanager
+Functions and classes provided:
 
-   This function is a decorator that can be used to define a factory
-   function for ``with`` statement context managers, without needing to
+.. decorator:: contextmanager
+
+   This function is a :term:`decorator` that can be used to define a factory
+   function for :keyword:`with` statement context managers, without needing to
    create a class or separate :meth:`__enter__` and :meth:`__exit__` methods.
 
    A simple example (this is not recommended as a real way of generating HTML!)::
@@ -56,24 +59,24 @@ API Reference
       foo
       </h1>
 
-   The function being decorated must return a generator-iterator when
+   The function being decorated must return a :term:`generator`-iterator when
    called. This iterator must yield exactly one value, which will be bound to
-   the targets in the ``with`` statement's ``as`` clause, if any.
+   the targets in the :keyword:`with` statement's :keyword:`as` clause, if any.
 
-   At the point where the generator yields, the block nested in the ``with``
+   At the point where the generator yields, the block nested in the :keyword:`with`
    statement is executed.  The generator is then resumed after the block is exited.
    If an unhandled exception occurs in the block, it is reraised inside the
    generator at the point where the yield occurred.  Thus, you can use a
-   ``try``...\ ``except``...\ ``finally`` statement to trap
+   :keyword:`try`...\ :keyword:`except`...\ :keyword:`finally` statement to trap
    the error (if any), or ensure that some cleanup takes place. If an exception is
    trapped merely in order to log it or to perform some action (rather than to
    suppress it entirely), the generator must reraise that exception. Otherwise the
-   generator context manager will indicate to the ``with`` statement that
+   generator context manager will indicate to the :keyword:`with` statement that
    the exception has been handled, and execution will resume with the statement
-   immediately following the ``with`` statement.
+   immediately following the :keyword:`with` statement.
 
    :func:`contextmanager` uses :class:`ContextDecorator` so the context managers
-   it creates can be used as decorators as well as in ``with`` statements.
+   it creates can be used as decorators as well as in :keyword:`with` statements.
    When used as a decorator, a new generator instance is implicitly created on
    each function call (this allows the otherwise "one-shot" context managers
    created by :func:`contextmanager` to meet the requirement that context
@@ -104,7 +107,97 @@ API Reference
               print(line)
 
    without needing to explicitly close ``page``.  Even if an error occurs,
-   ``page.close()`` will be called when the ``with`` block is exited.
+   ``page.close()`` will be called when the :keyword:`with` block is exited.
+
+
+.. function:: suppress(*exceptions)
+
+   Return a context manager that suppresses any of the specified exceptions
+   if they occur in the body of a with statement and then resumes execution
+   with the first statement following the end of the with statement.
+
+   As with any other mechanism that completely suppresses exceptions, this
+   context manager should be used only to cover very specific errors where
+   silently continuing with program execution is known to be the right
+   thing to do.
+
+   For example::
+
+       from contextlib import suppress
+
+       with suppress(FileNotFoundError):
+           os.remove('somefile.tmp')
+
+       with suppress(FileNotFoundError):
+           os.remove('someotherfile.tmp')
+
+   This code is equivalent to::
+
+       try:
+           os.remove('somefile.tmp')
+       except FileNotFoundError:
+           pass
+
+       try:
+           os.remove('someotherfile.tmp')
+       except FileNotFoundError:
+           pass
+
+   This context manager is :ref:`reentrant <reentrant-cms>`.
+
+   .. versionadded:: 0.5
+      Part of the standard library in Python 3.4 and later
+
+
+.. function:: redirect_stdout(new_target)
+
+   Context manager for temporarily redirecting :data:`sys.stdout` to
+   another file or file-like object.
+
+   This tool adds flexibility to existing functions or classes whose output
+   is hardwired to stdout.
+
+   For example, the output of :func:`help` normally is sent to *sys.stdout*.
+   You can capture that output in a string by redirecting the output to a
+   :class:`io.StringIO` object::
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            help(pow)
+        s = f.getvalue()
+
+   To send the output of :func:`help` to a file on disk, redirect the output
+   to a regular file::
+
+        with open('help.txt', 'w') as f:
+            with redirect_stdout(f):
+                help(pow)
+
+   To send the output of :func:`help` to *sys.stderr*::
+
+        with redirect_stdout(sys.stderr):
+            help(pow)
+
+   Note that the global side effect on :data:`sys.stdout` means that this
+   context manager is not suitable for use in library code and most threaded
+   applications. It also has no effect on the output of subprocesses.
+   However, it is still a useful approach for many utility scripts.
+
+   This context manager is :ref:`reentrant <reentrant-cms>`.
+
+   .. versionadded:: 0.5
+      Part of the standard library in Python 3.4 and later
+
+
+.. function:: redirect_stderr(new_target)
+
+   Similar to :func:`redirect_stdout`, but redirecting :data:`sys.stderr` to
+   another file or file-like object.
+
+   This context manager is :ref:`reentrant <reentrant-cms>`.
+
+   .. versionadded:: 0.5
+      Part of the standard library in Python 3.5 and later
 
 
 .. class:: ContextDecorator()
@@ -112,7 +205,7 @@ API Reference
    A base class that enables a context manager to also be used as a decorator.
 
    Context managers inheriting from ``ContextDecorator`` have to implement
-   :meth:`__enter__` and :meth:`__exit__` as normal. :meth:`__exit__` retains its optional
+   ``__enter__`` and ``__exit__`` as normal. ``__exit__`` retains its optional
    exception handling even when used as a decorator.
 
    ``ContextDecorator`` is used by :func:`contextmanager`, so you get this
@@ -174,22 +267,11 @@ API Reference
           def __exit__(self, *exc):
               return False
 
-   .. method:: refresh_cm()
-
-      This method is invoked each time a call is made to a decorated function.
-      The default implementation just returns *self*.
-
+   .. note::
       As the decorated function must be able to be called multiple times, the
-      underlying context manager must normally support use in multiple
-      ``with`` statements (preferably in a thread-safe manner). If
-      this is not the case, then the context manager must define this method
-      and return a *new* copy of the context manager on each invocation.
-
-      This may involve keeping a copy of the original arguments used to
-      first initialise the context manager.
-
-   .. versionchanged:: 0.1
-      Made the standard library's private :meth:`refresh_cm` API public
+      underlying context manager must support use in multiple :keyword:`with`
+      statements. If this is not the case, then the original construct with the
+      explicit :keyword:`with` statement inside the function should be used.
 
 
 .. class:: ExitStack()
@@ -205,19 +287,31 @@ API Reference
           files = [stack.enter_context(open(fname)) for fname in filenames]
           # All opened files will automatically be closed at the end of
           # the with statement, even if attempts to open files later
-          # in the list throw an exception
+          # in the list raise an exception
 
    Each instance maintains a stack of registered callbacks that are called in
    reverse order when the instance is closed (either explicitly or implicitly
-   at the end of a ``with`` statement). Note that callbacks are *not* invoked
-   implicitly when the context stack instance is garbage collected.
+   at the end of a :keyword:`with` statement). Note that callbacks are *not*
+   invoked implicitly when the context stack instance is garbage collected.
+
+   This stack model is used so that context managers that acquire their
+   resources in their ``__init__`` method (such as file objects) can be
+   handled correctly.
 
    Since registered callbacks are invoked in the reverse order of
-   registration, this ends up behaving as if multiple nested ``with``
+   registration, this ends up behaving as if multiple nested :keyword:`with`
    statements had been used with the registered set of callbacks. This even
    extends to exception handling - if an inner callback suppresses or replaces
    an exception, then outer callbacks will be passed arguments based on that
    updated state.
+
+   This is a relatively low level API that takes care of the details of
+   correctly unwinding the stack of exit callbacks. It provides a suitable
+   foundation for higher level context managers that manipulate the exit
+   stack in application specific ways.
+
+   .. versionadded:: 0.4
+      Part of the standard library in Python 3.3 and later
 
    .. method:: enter_context(cm)
 
@@ -226,21 +320,25 @@ API Reference
       manager's own :meth:`__enter__` method.
 
       These context managers may suppress exceptions just as they normally
-      would if used directly as part of a ``with`` statement.
+      would if used directly as part of a :keyword:`with` statement.
 
    .. method:: push(exit)
 
-      Directly accepts a callback with the same signature as a
-      context manager's :meth:`__exit__` method and adds it to the callback
-      stack.
+      Adds a context manager's :meth:`__exit__` method to the callback stack.
+
+      As ``__enter__`` is *not* invoked, this method can be used to cover
+      part of an :meth:`__enter__` implementation with a context manager's own
+      :meth:`__exit__` method.
+
+      If passed an object that is not a context manager, this method assumes
+      it is a callback with the same signature as a context manager's
+      :meth:`__exit__` method and adds it directly to the callback stack.
 
       By returning true values, these callbacks can suppress exceptions the
       same way context manager :meth:`__exit__` methods can.
 
-      This method also accepts any object with an ``__exit__`` method, and
-      will register that method as the callback. This is mainly useful to
-      cover part of an :meth:`__enter__` implementation with a context
-      manager's own :meth:`__exit__` method.
+      The passed in object is returned from the function, allowing this
+      method to be used as a function decorator.
 
    .. method:: callback(callback, *args, **kwds)
 
@@ -250,22 +348,27 @@ API Reference
       Unlike the other methods, callbacks added this way cannot suppress
       exceptions (as they are never passed the exception details).
 
+      The passed in callback is returned from the function, allowing this
+      method to be used as a function decorator.
+
    .. method:: pop_all()
 
-      Transfers the callback stack to a fresh instance and returns it. No
-      callbacks are invoked by this operation - instead, they will now be
-      invoked when the new stack is closed (either explicitly or implicitly).
+      Transfers the callback stack to a fresh :class:`ExitStack` instance
+      and returns it. No callbacks are invoked by this operation - instead,
+      they will now be invoked when the new stack is closed (either
+      explicitly or implicitly at the end of a :keyword:`with` statement).
 
       For example, a group of files can be opened as an "all or nothing"
       operation as follows::
 
          with ExitStack() as stack:
              files = [stack.enter_context(open(fname)) for fname in filenames]
+             # Hold onto the close method, but don't call it yet.
              close_files = stack.pop_all().close
              # If opening any file fails, all previously opened files will be
              # closed automatically. If all files are opened successfully,
              # they will remain open even after the with statement ends.
-             # close_files() can then be invoked explicitly to close them all
+             # close_files() can then be invoked explicitly to close them all.
 
    .. method:: close()
 
@@ -273,21 +376,6 @@ API Reference
       reverse order of registration. For any context managers and exit
       callbacks registered, the arguments passed in will indicate that no
       exception occurred.
-
-   .. versionadded:: 0.4
-      New API for :mod:`contextlib2`, not available in standard library
-
-
-.. class:: ContextStack()
-
-   An earlier incarnation of the :class:`ExitStack` interface. This class
-   is deprecated and should no longer be used.
-
-   .. versionchanged:: 0.4
-      Deprecated in favour of :class:`ExitStack`
-
-   .. versionadded:: 0.2
-      New API for :mod:`contextlib2`, not available in standard library
 
 
 Examples and Recipes
@@ -297,53 +385,6 @@ This section describes some examples and recipes for making effective use of
 the tools provided by :mod:`contextlib2`. Some of them may also work with
 :mod:`contextlib` in sufficiently recent versions of Python. When this is the
 case, it is noted at the end of the example.
-
-
-Using a context manager as a function decorator
------------------------------------------------
-
-:class:`ContextDecorator` makes it possible to use a context manager in
-both an ordinary ``with`` statement and also as a function decorator. The
-:meth:`ContextDecorator.refresh_cm` method even makes it possible to use
-otherwise single use context managers (such as those created by
-:func:`contextmanager`) that way.
-
-For example, it is sometimes useful to wrap functions or groups of statements
-with a logger that can track the time of entry and time of exit.  Rather than
-writing both a function decorator and a context manager for the task,
-:func:`contextmanager` provides both capabilities in a single
-definition::
-
-    from contextlib2 import contextmanager
-    import logging
-
-    logging.basicConfig(level=logging.INFO)
-
-    @contextmanager
-    def track_entry_and_exit(name):
-        logging.info('Entering: {}'.format(name))
-        yield
-        logging.info('Exiting: {}'.format(name))
-
-This can be used as both a context manager::
-
-    with track_entry_and_exit('widget loader'):
-        print('Some time consuming activity goes here')
-        load_widget()
-
-And also as a function decorator::
-
-    @track_entry_and_exit('widget loader')
-    def activity():
-        print('Some time consuming activity goes here')
-        load_widget()
-
-Note that there is one additional limitation when using context managers
-as function decorators: there's no way to access the return value of
-:meth:`__enter__`. If that value is needed, then it is still necessary to use
-an explicit ``with`` statement.
-
-This example should also work with :mod:`contextlib` in Python 3.2.1 or later.
 
 
 Cleaning up in an ``__enter__`` implementation
@@ -383,6 +424,8 @@ and maps them to the context management protocol::
        def __exit__(self, *exc_details):
            # We don't need to duplicate any of our resource release logic
            self.release_resource()
+
+This example will also work with :mod:`contextlib` in Python 3.3 or later.
 
 
 Replacing any use of ``try-finally`` and flag variables
@@ -456,7 +499,174 @@ advance::
 
 Due to the way the decorator protocol works, a callback function
 declared this way cannot take any parameters. Instead, any resources to
-be released must be accessed as closure variables
+be released must be accessed as closure variables.
+
+This example will also work with :mod:`contextlib` in Python 3.3 or later.
+
+
+Using a context manager as a function decorator
+-----------------------------------------------
+
+:class:`ContextDecorator` makes it possible to use a context manager in
+both an ordinary ``with`` statement and also as a function decorator. The
+:meth:`ContextDecorator.refresh_cm` method even makes it possible to use
+otherwise single use context managers (such as those created by
+:func:`contextmanager`) that way.
+
+For example, it is sometimes useful to wrap functions or groups of statements
+with a logger that can track the time of entry and time of exit.  Rather than
+writing both a function decorator and a context manager for the task,
+:func:`contextmanager` provides both capabilities in a single
+definition::
+
+    from contextlib2 import contextmanager
+    import logging
+
+    logging.basicConfig(level=logging.INFO)
+
+    @contextmanager
+    def track_entry_and_exit(name):
+        logging.info('Entering: {}'.format(name))
+        yield
+        logging.info('Exiting: {}'.format(name))
+
+This can be used as both a context manager::
+
+    with track_entry_and_exit('widget loader'):
+        print('Some time consuming activity goes here')
+        load_widget()
+
+And also as a function decorator::
+
+    @track_entry_and_exit('widget loader')
+    def activity():
+        print('Some time consuming activity goes here')
+        load_widget()
+
+Note that there is one additional limitation when using context managers
+as function decorators: there's no way to access the return value of
+:meth:`__enter__`. If that value is needed, then it is still necessary to use
+an explicit ``with`` statement.
+
+This example will also work with :mod:`contextlib` in Python 3.2.1 or later.
+
+
+Context Management Concepts
+===========================
+
+.. _single-use-reusable-and-reentrant-cms:
+
+Single use, reusable and reentrant context managers
+---------------------------------------------------
+
+Most context managers are written in a way that means they can only be
+used effectively in a :keyword:`with` statement once. These single use
+context managers must be created afresh each time they're used -
+attempting to use them a second time will trigger an exception or
+otherwise not work correctly.
+
+This common limitation means that it is generally advisable to create
+context managers directly in the header of the :keyword:`with` statement
+where they are used (as shown in all of the usage examples above).
+
+Files are an example of effectively single use context managers, since
+the first :keyword:`with` statement will close the file, preventing any
+further IO operations using that file object.
+
+Context managers created using :func:`contextmanager` are also single use
+context managers, and will complain about the underlying generator failing
+to yield if an attempt is made to use them a second time::
+
+    >>> from contextlib import contextmanager
+    >>> @contextmanager
+    ... def singleuse():
+    ...     print("Before")
+    ...     yield
+    ...     print("After")
+    ...
+    >>> cm = singleuse()
+    >>> with cm:
+    ...     pass
+    ...
+    Before
+    After
+    >>> with cm:
+    ...    pass
+    ...
+    Traceback (most recent call last):
+        ...
+    RuntimeError: generator didn't yield
+
+
+.. _reentrant-cms:
+
+Reentrant context managers
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+More sophisticated context managers may be "reentrant". These context
+managers can not only be used in multiple :keyword:`with` statements,
+but may also be used *inside* a :keyword:`with` statement that is already
+using the same context manager.
+
+:class:`threading.RLock` is an example of a reentrant context manager, as is
+:func:`suppress`. Here's a toy example of reentrant use (real world
+examples of reentrancy are more likely to occur with objects like recursive
+locks and are likely to be far more complicated than this example)::
+
+    >>> from contextlib import suppress
+    >>> ignore_raised_exception = suppress(ZeroDivisionError)
+    >>> with ignore_raised_exception:
+    ...     with ignore_raised_exception:
+    ...         1/0
+    ...     print("This line runs")
+    ...     1/0
+    ...     print("This is skipped")
+    ...
+    This line runs
+    >>> # The second exception is also suppressed
+
+
+.. _reusable-cms:
+
+Reusable context managers
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Distinct from both single use and reentrant context managers are "reusable"
+context managers (or, to be completely explicit, "reusable, but not
+reentrant" context managers, since reentrant context managers are also
+reusable). These context managers support being used multiple times, but
+will fail (or otherwise not work correctly) if the specific context manager
+instance has already been used in a containing with statement.
+
+An example of a reusable context manager is :func:`redirect_stdout`::
+
+    >>> from contextlib import redirect_stdout
+    >>> from io import StringIO
+    >>> f = StringIO()
+    >>> collect_output = redirect_stdout(f)
+    >>> with collect_output:
+    ...     print("Collected")
+    ...
+    >>> print("Not collected")
+    Not collected
+    >>> with collect_output:
+    ...     print("Also collected")
+    ...
+    >>> print(f.getvalue())
+    Collected
+    Also collected
+
+However, this context manager is not reentrant, so attempting to reuse it
+within a containing with statement fails:
+
+    >>> with collect_output:
+    ...     # Nested reuse is not permitted
+    ...     with collect_output:
+    ...         pass
+    ...
+    Traceback (most recent call last):
+      ...
+    RuntimeError: Cannot reenter <...>
 
 
 Obtaining the Module

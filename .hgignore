@@ -15,3 +15,4 @@ htmlcov/
 _build/
 dist/
 MANIFEST
+.tox
