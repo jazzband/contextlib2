@@ -1,6 +1,12 @@
 Release History
 ---------------
 
+0.5.1 (2016-01-13)
+~~~~~~~~~~~~~~~~~~
+
+* Python 2.6 compatilibity restored (although 2.6 is still missing from the
+  current CI configuration)
+
 0.5.0 (2016-01-12)
 ~~~~~~~~~~~~~~~~~~
 
