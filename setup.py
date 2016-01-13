@@ -11,7 +11,7 @@ setup(
     py_modules=['contextlib2'],
     license='PSF License',
     description='Backports and enhancements for the contextlib module',
-    long_description=open('README.md').read(),
+    long_description=open('README.rst').read(),
     author='Nick Coghlan',
     author_email='ncoghlan@gmail.com',
     url='http://contextlib2.readthedocs.org',

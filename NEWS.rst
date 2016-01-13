@@ -7,6 +7,8 @@ Release History
 * Python 2.6 compatilibity restored (although 2.6 is still missing from the
   current CI configuration)
 
+* README converted back to reStructured Text formatting
+
 0.5.0 (2016-01-12)
 ~~~~~~~~~~~~~~~~~~
 
