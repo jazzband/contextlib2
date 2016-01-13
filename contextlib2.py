@@ -250,7 +250,7 @@ class suppress:
 
 
 # Context manipulation is Python 3 only
-_HAVE_EXCEPTION_CHAINING = sys.version_info.major >= 3
+_HAVE_EXCEPTION_CHAINING = sys.version_info[0] >= 3
 if _HAVE_EXCEPTION_CHAINING:
     def _make_context_fixer(frame_exc):
         def _fix_exception_context(new_exc, old_exc):
