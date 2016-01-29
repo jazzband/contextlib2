@@ -763,6 +763,11 @@ class TestRedirectStream:
         s = f.getvalue()
         self.assertEqual(s, "Hello World!\n")
 
+    def test_cm_is_exitstack_compatible(self):
+        with ExitStack() as stack:
+            # This shouldn't raise an exception.
+            stack.enter_context(self.redirect_stream(io.StringIO()))
+
 
 class TestRedirectStdout(TestRedirectStream, unittest.TestCase):
 
@@ -829,6 +834,11 @@ class TestSuppress(unittest.TestCase):
             outer_continued = True
             1/0
         self.assertTrue(outer_continued)
+
+    def test_cm_is_exitstack_compatible(self):
+        with ExitStack() as stack:
+            # This shouldn't raise an exception.
+            stack.enter_context(suppress())
 
 if __name__ == "__main__":
     import unittest

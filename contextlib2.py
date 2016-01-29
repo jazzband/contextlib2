@@ -179,7 +179,7 @@ class closing(object):
         self.thing.close()
 
 
-class _RedirectStream:
+class _RedirectStream(object):
 
     _stream = None
 
@@ -219,7 +219,7 @@ class redirect_stderr(_RedirectStream):
     _stream = "stderr"
 
 
-class suppress:
+class suppress(object):
     """Context manager to suppress specified exceptions
 
     After the exception is suppressed, execution proceeds with the next
