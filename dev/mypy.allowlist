@@ -1,3 +1,6 @@
+contextlib2.AbstractContextManager.__class_getitem__
+contextlib2.AbstractAsyncContextManager.__class_getitem__
+contextlib2._typeshed.PathLike.__class_getitem__
 # Deprecated APIs that never graduated to the standard library
 contextlib2.ContextDecorator.refresh_cm
 contextlib2.ContextStack
