@@ -16,7 +16,7 @@ setup(
     python_requires='>=3.7',
     packages=['contextlib2'],
     include_package_data=True,
-    license='PSF License',
+    license='Python-2.0',
     description='Backports and enhancements for the contextlib module',
     long_description=open('README.rst').read(),
     author='Alyssa Coghlan',
@@ -26,7 +26,7 @@ setup(
         'Documentation': 'https://contextlib2.readthedocs.org',
         'Source': 'https://github.com/jazzband/contextlib2.git',
         'Issue Tracker': 'https://github.com/jazzband/contextlib2.git',
-    }
+    },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: Apache Software License',
