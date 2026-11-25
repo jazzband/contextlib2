@@ -3,51 +3,71 @@ name: Release
 on:
   push:
     tags:
-    - '*'
+      - '[0-9]*'
+      - 'v[0-9]*'
+      - 'V[0-9]*'
+
+permissions:
+  contents: read
+
+env:
+  PIP_NO_CACHE_DIR: "1"
 
 jobs:
   build:
     if: github.repository == 'jazzband/contextlib2'
     runs-on: ubuntu-latest
+    outputs:
+      artifact-id: ${{ steps.distributions.outputs.artifact-id }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: 3.9
-
-      - name: Get pip cache dir
-        id: pip-cache
-        run: |
-          echo "::set-output name=dir::$(pip cache dir)"
-
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: release-${{ hashFiles('**/tox.ini') }}
-          restore-keys: |
-            release-
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install -U setuptools twine wheel
+          python -m pip install -U build twine
 
       - name: Build package
         run: |
-          python setup.py --version
-          python setup.py sdist --format=gztar bdist_wheel
+          python -m build
           twine check dist/*
 
+      - name: Preserve release distributions
+        id: distributions
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  upload:
+    needs: build
+    if: github.repository == 'jazzband/contextlib2' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.build.outputs.artifact-id != ''
+    runs-on: ubuntu-latest
+    environment: jazzband-upload
+    permissions: {}
+
+    steps:
+      - name: Download release distributions
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: dist/
+          merge-multiple: true
+          digest-mismatch: error
+
       - name: Upload packages to Jazzband
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           user: jazzband
           password: ${{ secrets.JAZZBAND_RELEASE_KEY }}
-          repository_url: https://jazzband.co/projects/contextlib2/upload
+          repository-url: https://jazzband.co/projects/contextlib2/upload
+          attestations: false
