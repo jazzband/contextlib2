@@ -16,7 +16,7 @@ setup(
     python_requires='>=3.7',
     packages=['contextlib2'],
     include_package_data=True,
-    license='PSF License',
+    license='Python-2.0',
     description='Backports and enhancements for the contextlib module',
     long_description=open('README.rst').read(),
     author='Alyssa Coghlan',
